@@ -36,11 +36,21 @@ def test_health_reports_receive_only_capabilities() -> None:
     }
 
 
-def test_root_is_service_metadata() -> None:
+def test_root_serves_mobile_dashboard() -> None:
     client = TestClient(create_app(radio=FakeRadio()))
 
     response = client.get("/")
 
     assert response.status_code == 200
-    assert response.json()["service"] == "ChaosComms"
-    assert response.json()["version"] == "0.1.0"
+    assert response.headers["content-type"].startswith("text/html")
+    assert "ChaosComms" in response.text
+    assert "PTT disabled" in response.text
+
+
+def test_api_metadata_is_available() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    response = client.get("/api/v1/about")
+
+    assert response.status_code == 200
+    assert response.json() == {"service": "ChaosComms", "version": "0.1.0"}

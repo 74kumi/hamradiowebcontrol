@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>ChaosComms</title>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">PORTABLE RADIO CONTROL</p>
+        <h1>ChaosComms</h1>
+      </div>
+      <span id="service-state" class="pill pill-warn">Starting</span>
+    </header>
+
+    <section class="hero card">
+      <div>
+        <p class="eyebrow">PRIMARY RADIO</p>
+        <h2 id="radio-model">FT-891</h2>
+        <p id="radio-error" class="muted">Checking radio connection…</p>
+      </div>
+      <div class="radio-icon" aria-hidden="true">◉</div>
+    </section>
+
+    <section class="grid">
+      <article class="card metric">
+        <span class="label">Frequency</span>
+        <strong id="frequency">—</strong>
+        <span class="muted">receive status</span>
+      </article>
+      <article class="card metric">
+        <span class="label">Mode</span>
+        <strong id="mode">—</strong>
+        <span class="muted">current mode</span>
+      </article>
+    </section>
+
+    <section class="card safety">
+      <div class="safety-heading">
+        <span class="safety-mark">✓</span>
+        <div>
+          <h2>Receive-only mode</h2>
+          <p class="muted">Transmission controls are not available.</p>
+        </div>
+      </div>
+      <div class="disabled-control" aria-label="PTT disabled">PTT disabled</div>
+    </section>
+
+    <footer>
+      <span>Local operation</span>
+      <span id="updated">Not updated</span>
+    </footer>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
