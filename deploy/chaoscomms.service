@@ -1,0 +1,24 @@
+# ChaosComms receive-only service
+
+[Unit]
+Description=ChaosComms receive-only radio control plane
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=chaoscomms
+Group=chaoscomms
+WorkingDirectory=/opt/chaoscomms
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/chaoscomms/.venv/bin/uvicorn chaoscomms.main:app --host 0.0.0.0 --port 8080
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/chaoscomms
+
+[Install]
+WantedBy=multi-user.target
