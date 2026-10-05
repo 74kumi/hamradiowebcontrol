@@ -21,6 +21,9 @@ test = [
 [project.scripts]
 chaoscomms = "chaoscomms.main:main"
 
+[tool.setuptools.packages.find]
+include = ["chaoscomms*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
