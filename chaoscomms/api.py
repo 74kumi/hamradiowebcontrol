@@ -1,10 +1,11 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from chaoscomms.aprs import APRSManager, SimulatedAPRS
+from chaoscomms.auth import control_authentication_configured, require_control_token
 from chaoscomms.config import build_runtime
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
 from chaoscomms.radio import HamlibRadio, Radio, RadioManager, SimulatedRadio
@@ -46,6 +47,22 @@ def create_app(
     @app.get("/api/v1/about")
     def about() -> dict[str, str]:
         return {"service": "ChaosComms", "version": SERVICE_VERSION}
+
+    @app.get("/api/v1/access")
+    def access() -> dict[str, object]:
+        return {
+            "control_authentication": "bearer",
+            "control_authentication_configured": control_authentication_configured(),
+            "control_enabled": False,
+            "receive_only": True,
+        }
+
+    @app.get(
+        "/api/v1/control/capabilities",
+        dependencies=[Depends(require_control_token)],
+    )
+    def control_capabilities() -> dict[str, object]:
+        return {"control_enabled": False, "ptt": False}
 
     @app.get("/api/v1/radios")
     def radios() -> dict[str, object]:
