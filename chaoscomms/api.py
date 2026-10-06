@@ -8,6 +8,7 @@ from chaoscomms.aprs import APRSManager, SimulatedAPRS
 from chaoscomms.config import build_runtime
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
 from chaoscomms.radio import HamlibRadio, Radio, RadioManager, SimulatedRadio
+from chaoscomms.resources import ResourceManager
 
 SERVICE_VERSION = "0.1.0"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -26,6 +27,7 @@ def create_app(
     manager: RadioManager | None = None,
     aprs: APRSManager | None = None,
     js8call: JS8CallManager | None = None,
+    resources: ResourceManager | None = None,
 ) -> FastAPI:
     app = FastAPI(title="ChaosComms", version=SERVICE_VERSION)
     if radio is None and manager is None:
@@ -34,6 +36,7 @@ def create_app(
     app.state.manager = manager or default_manager()
     app.state.aprs = aprs or APRSManager(SimulatedAPRS())
     app.state.js8call = js8call or JS8CallManager(SimulatedJS8Call())
+    app.state.resources = resources or ResourceManager()
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
@@ -51,6 +54,14 @@ def create_app(
     @app.get("/api/v1/aprs")
     def aprs_packets() -> dict[str, object]:
         return {"packets": app.state.aprs.recent_packets(), "transmit_enabled": False}
+
+    @app.get("/api/v1/resources")
+    def resources_status() -> dict[str, object]:
+        return {
+            "resources": app.state.resources.snapshot(),
+            "receive_only": app.state.resources.policy.receive_only,
+            "transmit_enabled": False,
+        }
 
     @app.get("/api/v1/js8call")
     def js8call_events() -> dict[str, object]:

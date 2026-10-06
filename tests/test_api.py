@@ -123,6 +123,19 @@ def test_unknown_runtime_mode_is_rejected() -> None:
         raise AssertionError("unknown runtime mode was accepted")
 
 
+def test_resources_endpoint_reports_receive_only_state() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    response = client.get("/api/v1/resources")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "resources": {},
+        "receive_only": True,
+        "transmit_enabled": False,
+    }
+
+
 def test_js8call_endpoint_is_receive_only() -> None:
     client = TestClient(create_app(radio=FakeRadio()))
 
