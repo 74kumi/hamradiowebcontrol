@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from chaoscomms.config import build_runtime
 from chaoscomms.radio import HamlibRadio, Radio, RadioManager, SimulatedRadio
 
 SERVICE_VERSION = "0.1.0"
@@ -20,6 +21,8 @@ def default_manager() -> RadioManager:
 
 def create_app(radio: Radio | None = None, manager: RadioManager | None = None) -> FastAPI:
     app = FastAPI(title="ChaosComms", version=SERVICE_VERSION)
+    if radio is None and manager is None:
+        radio, manager = build_runtime()
     app.state.radio = radio or HamlibRadio()
     app.state.manager = manager or default_manager()
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

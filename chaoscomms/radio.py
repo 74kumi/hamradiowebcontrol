@@ -1,5 +1,6 @@
 """Radio integration boundaries and safe simulated adapters."""
 
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import Protocol
 
@@ -71,7 +72,14 @@ class HamlibRadio:
     kind = "transceiver"
     source = "hamlib"
 
-    def __init__(self, model: str = "FT-891", host: str = "127.0.0.1", port: int = 4532) -> None:
+    def __init__(
+        self,
+        radio_id: str = "ft891",
+        model: str = "FT-891",
+        host: str = "127.0.0.1",
+        port: int = 4532,
+    ) -> None:
+        self.radio_id = radio_id
         self.model = model
         self.host = host
         self.port = port
@@ -103,8 +111,8 @@ class HamlibRadio:
 
 
 class RadioManager:
-    def __init__(self, radios: list[ManagedRadio]) -> None:
-        self.radios = radios
+    def __init__(self, radios: Sequence[ManagedRadio]) -> None:
+        self.radios = list(radios)
 
     def statuses(self) -> list[dict[str, object]]:
         return [radio.status_dict() for radio in self.radios]
