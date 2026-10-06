@@ -24,7 +24,14 @@ h2 { font-size: 1.45rem; }
 .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
 .metric { padding: 22px; }
 .metric strong { display: block; margin: 13px 0 4px; font-size: 2rem; letter-spacing: -.04em; }
-.safety { padding: 22px; border-color: #265a4b; }
+.fleet { padding: 22px; margin-bottom: 16px; }
+.section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.section-heading h2 { margin-top: 6px; }
+.fleet-list { display: grid; gap: 10px; margin-top: 18px; }
+.fleet-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; border: 1px solid #293752; border-radius: 14px; background: #121c30; }
+.fleet-name { font-weight: 800; }
+.fleet-meta { margin-top: 4px; color: #8290aa; font-size: .78rem; }
+.fleet-state { color: #a7f3d0; font-size: .78rem; font-weight: 800; }
 .safety-mark { display: grid; place-items: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 50%; color: #a7f3d0; background: #123b32; font-weight: 900; }
 .safety-heading { justify-content: flex-start; }
 .disabled-control { margin-top: 20px; padding: 15px; border: 1px solid #39455d; border-radius: 14px; color: #77839a; background: #151c2b; text-align: center; font-weight: 800; }
