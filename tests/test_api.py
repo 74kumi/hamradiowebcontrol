@@ -121,3 +121,13 @@ def test_unknown_runtime_mode_is_rejected() -> None:
         assert "live" in str(error)
     else:
         raise AssertionError("unknown runtime mode was accepted")
+
+
+def test_js8call_endpoint_is_receive_only() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    response = client.get("/api/v1/js8call")
+
+    assert response.status_code == 200
+    assert response.json()["transmit_enabled"] is False
+    assert response.json()["events"][0]["source"] == "N0CALL"
