@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from chaoscomms.aprs import APRSManager, SimulatedAPRS
 from chaoscomms.config import build_runtime
 from chaoscomms.radio import HamlibRadio, Radio, RadioManager, SimulatedRadio
 
@@ -19,12 +20,17 @@ def default_manager() -> RadioManager:
     ])
 
 
-def create_app(radio: Radio | None = None, manager: RadioManager | None = None) -> FastAPI:
+def create_app(
+    radio: Radio | None = None,
+    manager: RadioManager | None = None,
+    aprs: APRSManager | None = None,
+) -> FastAPI:
     app = FastAPI(title="ChaosComms", version=SERVICE_VERSION)
     if radio is None and manager is None:
         radio, manager = build_runtime()
     app.state.radio = radio or HamlibRadio()
     app.state.manager = manager or default_manager()
+    app.state.aprs = aprs or APRSManager(SimulatedAPRS())
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
@@ -38,6 +44,10 @@ def create_app(radio: Radio | None = None, manager: RadioManager | None = None) 
     @app.get("/api/v1/radios")
     def radios() -> dict[str, object]:
         return {"radios": app.state.manager.statuses()}
+
+    @app.get("/api/v1/aprs")
+    def aprs_packets() -> dict[str, object]:
+        return {"packets": app.state.aprs.recent_packets(), "transmit_enabled": False}
 
     @app.get("/api/v1/health")
     def health() -> dict[str, object]:

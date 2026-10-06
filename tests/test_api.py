@@ -57,6 +57,16 @@ def test_api_metadata_is_available() -> None:
     assert response.json() == {"service": "ChaosComms", "version": "0.1.0"}
 
 
+def test_aprs_endpoint_is_receive_only() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    response = client.get("/api/v1/aprs")
+
+    assert response.status_code == 200
+    assert response.json()["transmit_enabled"] is False
+    assert response.json()["packets"][0]["source"] == "N0CALL"
+
+
 def test_radio_manager_reports_all_three_simulated_radios() -> None:
     manager = RadioManager([
         SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
@@ -90,6 +100,17 @@ def test_simulator_runtime_uses_simulated_primary_and_fleet() -> None:
 
     assert isinstance(radio, SimulatedRadio)
     assert [entry["source"] for entry in manager.statuses()] == ["simulator"] * 3
+
+
+def test_live_runtime_isolates_vrn7500_transport() -> None:
+    _, manager = build_runtime("live")
+
+    statuses = manager.statuses()
+
+    assert statuses[0]["source"] == "hamlib"
+    assert statuses[1]["source"] == "hamlib"
+    assert statuses[2]["source"] == "benlink"
+    assert statuses[2]["status"]["connected"] is False
 
 
 def test_unknown_runtime_mode_is_rejected() -> None:
