@@ -1,8 +1,9 @@
 """Radio integration boundaries and safe simulated adapters."""
 
+import socket
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 
 @dataclass(frozen=True)
@@ -84,15 +85,34 @@ class HamlibRadio:
         self.host = host
         self.port = port
 
+    def _command(self, file: Any, command: str) -> list[str]:
+        file.write(f"{command}\n".encode())
+        file.flush()
+        lines: list[str] = []
+        while True:
+            line = file.readline().decode().strip()
+            if line.startswith("RPRT "):
+                if line != "RPRT 0":
+                    raise RuntimeError(line)
+                return lines
+            lines.append(line)
+
     def status(self) -> RadioStatus:
-        return RadioStatus(
-            connected=False,
-            model=self.model,
-            frequency_hz=None,
-            mode=None,
-            ptt_enabled=False,
-            error=f"rigctld unavailable at {self.host}:{self.port}",
-        )
+        try:
+            with socket.create_connection((self.host, self.port), timeout=1.5) as connection:
+                file = connection.makefile("rwb")
+                frequency = int(self._command(file, "f")[0])
+                mode = self._command(file, "m")[0]
+            return RadioStatus(True, self.model, frequency, mode, False, None)
+        except (OSError, ValueError, RuntimeError, IndexError) as error:
+            return RadioStatus(
+                False,
+                self.model,
+                None,
+                None,
+                False,
+                f"rigctld unavailable at {self.host}:{self.port}: {error}",
+            )
 
     def status_dict(self) -> dict[str, object]:
         return {
