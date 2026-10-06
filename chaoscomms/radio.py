@@ -130,6 +130,51 @@ class HamlibRadio:
         }
 
 
+class VRN7500Transport(Protocol):
+    def status(self) -> RadioStatus: ...
+
+
+class VRN7500Radio:
+    """Receive-only boundary for the VR-N7500 BLE/RFCOMM transport."""
+
+    radio_id = "vrn7500"
+    kind = "transceiver"
+    source = "benlink"
+
+    def __init__(self, transport: VRN7500Transport | None = None) -> None:
+        self.transport = transport
+
+    def status(self) -> RadioStatus:
+        if self.transport is None:
+            return RadioStatus(
+                False,
+                "VR-N7500",
+                None,
+                None,
+                False,
+                "VR-N7500 BLE/RFCOMM transport not configured",
+            )
+        try:
+            return self.transport.status()
+        except (OSError, RuntimeError, TimeoutError) as error:
+            return RadioStatus(False, "VR-N7500", None, None, False, str(error))
+
+    def status_dict(self) -> dict[str, object]:
+        return {
+            "id": self.radio_id,
+            "model": "VR-N7500",
+            "kind": self.kind,
+            "source": self.source,
+            "status": self.status().as_dict(),
+            "capabilities": {
+                "frequency_read": True,
+                "mode_read": True,
+                "audio_receive": False,
+                "ptt": False,
+            },
+        }
+
+
 class RadioManager:
     def __init__(self, radios: Sequence[ManagedRadio]) -> None:
         self.radios = list(radios)
