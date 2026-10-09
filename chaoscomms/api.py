@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -8,7 +8,7 @@ from chaoscomms.aprs import APRSManager, SimulatedAPRS
 from chaoscomms.auth import control_authentication_configured, require_control_token
 from chaoscomms.config import build_runtime
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
-from chaoscomms.radio import HamlibRadio, Radio, RadioManager, SimulatedRadio
+from chaoscomms.radio import Radio, RadioManager, SimulatedRadio
 from chaoscomms.resources import ResourceManager
 
 SERVICE_VERSION = "0.1.0"
@@ -33,8 +33,8 @@ def create_app(
     app = FastAPI(title="ChaosComms", version=SERVICE_VERSION)
     if radio is None and manager is None:
         radio, manager = build_runtime()
-    app.state.radio = radio or HamlibRadio()
     app.state.manager = manager or default_manager()
+    app.state.radio = radio or app.state.manager.active_radio()
     app.state.aprs = aprs or APRSManager(SimulatedAPRS())
     app.state.js8call = js8call or JS8CallManager(SimulatedJS8Call())
     app.state.resources = resources or ResourceManager()
@@ -67,6 +67,15 @@ def create_app(
     @app.get("/api/v1/radios")
     def radios() -> dict[str, object]:
         return {"radios": app.state.manager.statuses()}
+
+    @app.post("/api/v1/radios/{radio_id}/select")
+    def select_radio(radio_id: str) -> dict[str, object]:
+        try:
+            app.state.manager.select(radio_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="radio not found") from error
+        app.state.radio = app.state.manager.active_radio()
+        return {"active_radio_id": app.state.manager.active_radio_id}
 
     @app.get("/api/v1/aprs")
     def aprs_packets() -> dict[str, object]:

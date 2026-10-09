@@ -93,6 +93,36 @@ def test_radios_endpoint_exposes_multi_radio_status() -> None:
     assert response.status_code == 200
     assert len(response.json()["radios"]) == 3
     assert response.json()["radios"][2]["model"] == "VR-N7500"
+    assert response.json()["radios"][0]["active"] is True
+    assert all(radio["capabilities"]["ptt"] is False for radio in response.json()["radios"])
+
+
+def test_simulator_radio_can_be_selected_without_enabling_transmit() -> None:
+    manager = RadioManager([
+        SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
+        SimulatedRadio("ft2980r", "Yaesu FT-2980R", "transceiver"),
+    ])
+    client = TestClient(create_app(manager=manager))
+
+    response = client.post("/api/v1/radios/ft2980r/select")
+
+    assert response.status_code == 200
+    assert response.json() == {"active_radio_id": "ft2980r"}
+    assert client.get("/api/v1/health").json()["radio"]["model"] == "Yaesu FT-2980R"
+    assert client.get("/api/v1/health").json()["radio"]["ptt_enabled"] is False
+    statuses = client.get("/api/v1/radios").json()["radios"]
+    assert statuses[0]["active"] is False
+    assert statuses[1]["active"] is True
+
+
+def test_unknown_radio_selection_is_rejected() -> None:
+    client = TestClient(create_app(manager=RadioManager([
+        SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
+    ])))
+
+    response = client.post("/api/v1/radios/not-real/select")
+
+    assert response.status_code == 404
 
 
 def test_simulator_runtime_uses_simulated_primary_and_fleet() -> None:

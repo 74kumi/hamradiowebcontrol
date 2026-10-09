@@ -178,6 +178,20 @@ class VRN7500Radio:
 class RadioManager:
     def __init__(self, radios: Sequence[ManagedRadio]) -> None:
         self.radios = list(radios)
+        if not self.radios:
+            raise ValueError("at least one radio is required")
+        self.active_radio_id = self.radios[0].radio_id
 
     def statuses(self) -> list[dict[str, object]]:
-        return [radio.status_dict() for radio in self.radios]
+        return [
+            {**radio.status_dict(), "active": radio.radio_id == self.active_radio_id}
+            for radio in self.radios
+        ]
+
+    def select(self, radio_id: str) -> None:
+        if not any(radio.radio_id == radio_id for radio in self.radios):
+            raise KeyError(radio_id)
+        self.active_radio_id = radio_id
+
+    def active_radio(self) -> ManagedRadio:
+        return next(radio for radio in self.radios if radio.radio_id == self.active_radio_id)

@@ -1,10 +1,27 @@
 const setText = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
 
+const selectRadio = async (radioId) => {
+  try {
+    const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/select`, {
+      method: "POST",
+      headers: { "Accept": "application/json" },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await Promise.all([refreshHealth(), refreshFleet()]);
+  } catch (error) {
+    setText("radio-error", "Unable to select radio");
+  }
+};
+
 const renderFleet = (radios) => {
   const fleet = document.getElementById("radio-fleet");
   fleet.replaceChildren(...radios.map((radio) => {
-    const row = document.createElement("div");
+    const row = document.createElement("button");
+    row.type = "button";
     row.className = "fleet-row";
+    row.classList.toggle("fleet-row-active", radio.active === true);
+    row.setAttribute("aria-pressed", radio.active === true ? "true" : "false");
+    row.addEventListener("click", () => selectRadio(radio.id));
     const details = document.createElement("div");
     const name = document.createElement("div");
     name.className = "fleet-name";
@@ -15,7 +32,7 @@ const renderFleet = (radios) => {
     details.append(name, meta);
     const state = document.createElement("span");
     state.className = "fleet-state";
-    state.textContent = radio.status.connected ? "Simulated" : "Offline";
+    state.textContent = radio.active ? "Active" : (radio.status.connected ? "Simulated" : "Offline");
     row.append(details, state);
     return row;
   }));
