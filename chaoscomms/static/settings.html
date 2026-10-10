@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>ChaosComms Settings</title>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CHAOSCOMMS</p>
+        <h1>Settings</h1>
+      </div>
+      <a class="back-link" href="/">Dashboard</a>
+    </header>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Session</h2><span class="muted">Authenticated</span></div>
+      <p class="muted">Settings changes require the HTTPS login session.</p>
+      <button id="logout" class="secondary-button" type="button">Log out</button>
+    </section>
+
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Safety policy</h2><span id="settings-status" class="pill pill-warn">Loading</span></div>
+      <dl class="settings-list">
+        <div><dt>Runtime mode</dt><dd id="runtime-mode">—</dd></div>
+        <div><dt>Receive-only</dt><dd id="receive-only">—</dd></div>
+        <div><dt>PTT / transmit</dt><dd id="ptt-state">—</dd></div>
+      </dl>
+    </section>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Radio mappings</h2><span class="muted">Safe simulator control</span></div>
+      <div class="settings-control">
+        <label for="active-radio">Active radio</label>
+        <select id="active-radio"></select>
+        <div class="settings-actions">
+          <button id="apply-radio" class="audio-toggle" type="button">Apply selection</button>
+          <button id="refresh-settings" class="secondary-button" type="button">Refresh</button>
+        </div>
+      </div>
+      <div id="radio-settings" class="settings-table">Loading…</div>
+      <div class="settings-control">
+        <label for="new-radio-id">Add simulator radio</label>
+        <input id="new-radio-id" placeholder="radio id, e.g. sdr1">
+        <input id="new-radio-model" placeholder="display model">
+        <button id="add-radio" class="secondary-button" type="button">Add radio</button>
+      </div>
+      <div class="settings-control">
+        <label for="map-device">Assign discovered device</label>
+        <select id="map-device"></select>
+        <button id="map-radio" class="secondary-button" type="button">Assign to active radio</button>
+      </div>
+    </section>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Bluetooth radio</h2><span id="bluetooth-state" class="muted">Simulator mode</span></div>
+      <p class="muted">Bluetooth discovery and pairing are disabled while hardware control is not explicitly enabled.</p>
+      <div class="settings-actions">
+        <button id="bluetooth-scan" class="secondary-button" type="button">Scan Bluetooth</button>
+        <button id="bluetooth-pair" class="secondary-button" type="button" disabled>Pair selected</button>
+      </div>
+      <div id="bluetooth-devices" class="settings-table">No scan performed</div>
+    </section>
+
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Audio mapping</h2><span class="muted">Receive only</span></div>
+      <dl class="settings-list">
+        <div><dt>Source</dt><dd id="audio-source">—</dd></div>
+        <div><dt>ALSA device</dt><dd id="audio-device">—</dd></div>
+        <div><dt>Format</dt><dd id="audio-format">—</dd></div>
+      </dl>
+      <p class="muted settings-note">Mappings are intentionally read-only until stable udev identities are committed. No PTT or transmit setting is exposed here.</p>
+    </section>
+  </main>
+  <script>
+    const text = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
+    document.getElementById("logout").addEventListener("click", async () => {
+      await fetch("/api/v1/logout", { method: "POST" });
+      window.location.assign("/login");
+    });
+    const authHeaders = () => ({ });
+    let radios = [];
+    const renderRadios = () => {
+      const select = document.getElementById("active-radio");
+      select.replaceChildren(...radios.map((radio) => {
+        const option = document.createElement("option");
+        option.value = radio.id;
+        option.textContent = `${radio.model} (${radio.source})`;
+        option.selected = radio.active === true;
+        return option;
+      }));
+      document.getElementById("radio-settings").replaceChildren(...radios.map((radio) => {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const name = document.createElement("strong");
+        name.textContent = radio.model;
+        const meta = document.createElement("span");
+        meta.textContent = `${radio.id} · ${radio.source} · ${radio.active ? "active" : "standby"}`;
+        const remove = document.createElement("button");
+        remove.className = "secondary-button";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.disabled = radios.length <= 1;
+        remove.addEventListener("click", async () => {
+          await fetch(`/api/v1/radios/${encodeURIComponent(radio.id)}`, { method: "DELETE", headers: authHeaders() });
+          window.location.reload();
+        });
+        row.append(name, meta, remove);
+        return row;
+      }));
+    };
+    document.getElementById("apply-radio").addEventListener("click", async () => {
+      const radioId = document.getElementById("active-radio").value;
+      const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/select`, { method: "POST", headers: authHeaders() });
+      if (response.ok) {
+        text("settings-status", "Applied");
+        window.location.reload();
+      } else {
+        text("settings-status", "Selection failed");
+      }
+    });
+    document.getElementById("refresh-settings").addEventListener("click", () => window.location.reload());
+    const bluetoothStatus = document.getElementById("bluetooth-state");
+    document.getElementById("bluetooth-scan").addEventListener("click", async () => {
+      bluetoothStatus.textContent = "Scanning…";
+      const response = await fetch("/api/v1/bluetooth/scan", { method: "POST", headers: authHeaders() });
+      const data = await response.json();
+      bluetoothStatus.textContent = data.status;
+      const devices = document.getElementById("bluetooth-devices");
+      devices.textContent = data.devices.length ? data.devices.join("\n") : data.message;
+    });
+    document.getElementById("bluetooth-pair").addEventListener("click", async () => {
+      const response = await fetch("/api/v1/bluetooth/pair", { method: "POST", headers: authHeaders() });
+      const data = await response.json();
+      bluetoothStatus.textContent = data.status;
+    });
+    document.getElementById("add-radio").addEventListener("click", async () => {
+      const id = document.getElementById("new-radio-id").value.trim();
+      const model = document.getElementById("new-radio-model").value.trim();
+      const response = await fetch("/api/v1/radios", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ id, model }),
+      });
+      text("settings-status", response.ok ? "Radio added" : "Add failed");
+      if (response.ok) window.location.reload();
+    });
+    document.getElementById("map-radio").addEventListener("click", async () => {
+      const radioId = document.getElementById("active-radio").value;
+      const device = document.getElementById("map-device").value;
+      const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/mapping`, {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ device }),
+      });
+      text("settings-status", response.ok ? "Mapping assigned" : "Mapping failed");
+      if (response.ok) window.location.reload();
+    });
+    fetch("/api/v1/devices", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      const devices = [...data.serial, ...data.audio];
+      const select = document.getElementById("map-device");
+      select.replaceChildren(...devices.map((device) => {
+        const option = document.createElement("option");
+        option.value = device.path;
+        option.textContent = `${device.kind}: ${device.path}`;
+        return option;
+      }));
+    });
+    fetch("/api/v1/settings", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      radios = data.radios;
+      renderRadios();
+      text("runtime-mode", data.runtime_mode);
+      text("receive-only", data.receive_only ? "Enabled" : "DISABLED");
+      text("ptt-state", data.ptt ? "ENABLED" : "Disabled");
+      text("settings-status", data.receive_only && !data.ptt ? "Safe" : "Review");
+      text("audio-source", data.audio.source);
+      text("audio-device", data.audio.device);
+      text("audio-format", `${data.audio.format} · ${data.audio.sample_rate_hz} Hz · ${data.audio.channels} channels`);
+    }).catch(() => text("settings-status", "Unavailable"));
+  </script>
+</body>
+</html>
