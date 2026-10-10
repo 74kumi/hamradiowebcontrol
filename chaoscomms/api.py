@@ -81,7 +81,10 @@ def create_app(
     def devices() -> dict[str, object]:
         return inventory()
 
-    @app.post("/api/v1/radios")
+    @app.post(
+        "/api/v1/radios",
+        dependencies=[Depends(require_control_token)],
+    )
     def add_radio(payload: dict[str, object]) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="radio changes require simulator mode")
@@ -95,7 +98,10 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
         return {"radios": app.state.manager.statuses(), "receive_only": True, "ptt": False}
 
-    @app.delete("/api/v1/radios/{radio_id}")
+    @app.delete(
+        "/api/v1/radios/{radio_id}",
+        dependencies=[Depends(require_control_token)],
+    )
     def remove_radio(radio_id: str) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="radio changes require simulator mode")
@@ -108,7 +114,10 @@ def create_app(
         app.state.radio = app.state.manager.active_radio()
         return {"radios": app.state.manager.statuses(), "receive_only": True, "ptt": False}
 
-    @app.post("/api/v1/radios/{radio_id}/mapping")
+    @app.post(
+        "/api/v1/radios/{radio_id}/mapping",
+        dependencies=[Depends(require_control_token)],
+    )
     def map_radio(radio_id: str, payload: dict[str, str]) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="mapping changes require simulator mode")
@@ -128,7 +137,10 @@ def create_app(
             "audio": app.state.audio.status(),
         }
 
-    @app.post("/api/v1/radios/{radio_id}/select")
+    @app.post(
+        "/api/v1/radios/{radio_id}/select",
+        dependencies=[Depends(require_control_token)],
+    )
     def select_radio(radio_id: str) -> dict[str, object]:
         try:
             app.state.manager.select(radio_id)
@@ -149,7 +161,10 @@ def create_app(
             "transmit_enabled": False,
         }
 
-    @app.post("/api/v1/bluetooth/scan")
+    @app.post(
+        "/api/v1/bluetooth/scan",
+        dependencies=[Depends(require_control_token)],
+    )
     def bluetooth_scan() -> dict[str, object]:
         return {
             "status": "disabled",
@@ -159,7 +174,10 @@ def create_app(
             "ptt": False,
         }
 
-    @app.post("/api/v1/bluetooth/pair")
+    @app.post(
+        "/api/v1/bluetooth/pair",
+        dependencies=[Depends(require_control_token)],
+    )
     def bluetooth_pair() -> dict[str, object]:
         return {
             "status": "disabled",

@@ -16,6 +16,15 @@
       <a class="back-link" href="/">Dashboard</a>
     </header>
     <section class="card settings-card">
+      <div class="section-heading"><h2>Control authentication</h2><span class="muted">Browser only</span></div>
+      <p class="muted">Required for settings changes. Stored only in this browser’s local storage.</p>
+      <div class="settings-control">
+        <input id="api-token" type="password" autocomplete="off" placeholder="Bearer token">
+        <button id="save-token" class="secondary-button" type="button">Save token locally</button>
+      </div>
+    </section>
+
+    <section class="card settings-card">
       <div class="section-heading"><h2>Safety policy</h2><span id="settings-status" class="pill pill-warn">Loading</span></div>
       <dl class="settings-list">
         <div><dt>Runtime mode</dt><dd id="runtime-mode">—</dd></div>
@@ -68,6 +77,16 @@
   </main>
   <script>
     const text = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
+    const tokenInput = document.getElementById("api-token");
+    tokenInput.value = localStorage.getItem("chaoscomms_api_token") || "";
+    const authHeaders = () => {
+      const token = localStorage.getItem("chaoscomms_api_token");
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    };
+    document.getElementById("save-token").addEventListener("click", () => {
+      localStorage.setItem("chaoscomms_api_token", tokenInput.value.trim());
+      text("settings-status", "Token saved locally");
+    });
     let radios = [];
     const renderRadios = () => {
       const select = document.getElementById("active-radio");
@@ -91,7 +110,7 @@
         remove.textContent = "Remove";
         remove.disabled = radios.length <= 1;
         remove.addEventListener("click", async () => {
-          await fetch(`/api/v1/radios/${encodeURIComponent(radio.id)}`, { method: "DELETE" });
+          await fetch(`/api/v1/radios/${encodeURIComponent(radio.id)}`, { method: "DELETE", headers: authHeaders() });
           window.location.reload();
         });
         row.append(name, meta, remove);
@@ -100,7 +119,7 @@
     };
     document.getElementById("apply-radio").addEventListener("click", async () => {
       const radioId = document.getElementById("active-radio").value;
-      const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/select`, { method: "POST" });
+      const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/select`, { method: "POST", headers: authHeaders() });
       if (response.ok) {
         text("settings-status", "Applied");
         window.location.reload();
@@ -112,14 +131,14 @@
     const bluetoothStatus = document.getElementById("bluetooth-state");
     document.getElementById("bluetooth-scan").addEventListener("click", async () => {
       bluetoothStatus.textContent = "Scanning…";
-      const response = await fetch("/api/v1/bluetooth/scan", { method: "POST" });
+      const response = await fetch("/api/v1/bluetooth/scan", { method: "POST", headers: authHeaders() });
       const data = await response.json();
       bluetoothStatus.textContent = data.status;
       const devices = document.getElementById("bluetooth-devices");
       devices.textContent = data.devices.length ? data.devices.join("\n") : data.message;
     });
     document.getElementById("bluetooth-pair").addEventListener("click", async () => {
-      const response = await fetch("/api/v1/bluetooth/pair", { method: "POST" });
+      const response = await fetch("/api/v1/bluetooth/pair", { method: "POST", headers: authHeaders() });
       const data = await response.json();
       bluetoothStatus.textContent = data.status;
     });
@@ -128,7 +147,7 @@
       const model = document.getElementById("new-radio-model").value.trim();
       const response = await fetch("/api/v1/radios", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ id, model }),
       });
       text("settings-status", response.ok ? "Radio added" : "Add failed");
@@ -139,7 +158,7 @@
       const device = document.getElementById("map-device").value;
       const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/mapping`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ device }),
       });
       text("settings-status", response.ok ? "Mapping assigned" : "Mapping failed");

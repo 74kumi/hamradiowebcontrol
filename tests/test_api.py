@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from chaoscomms.api import create_app
@@ -63,11 +64,13 @@ def test_settings_page_and_endpoint_expose_receive_only_mapping() -> None:
     assert payload.json()["audio"]["source"] == "alsa"
 
 
-def test_bluetooth_actions_are_disabled_in_simulator_mode() -> None:
+def test_bluetooth_actions_are_disabled_in_simulator_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")
     client = TestClient(create_app(radio=FakeRadio()))
 
-    scan = client.post("/api/v1/bluetooth/scan")
-    pair = client.post("/api/v1/bluetooth/pair")
+    headers = {"Authorization": "Bearer test-token"}
+    scan = client.post("/api/v1/bluetooth/scan", headers=headers)
+    pair = client.post("/api/v1/bluetooth/pair", headers=headers)
 
     assert scan.json()["status"] == "disabled"
     assert scan.json()["devices"] == []
@@ -77,13 +80,19 @@ def test_bluetooth_actions_are_disabled_in_simulator_mode() -> None:
 
 def test_simulator_radio_can_be_added_mapped_and_removed(monkeypatch) -> None:
     monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
+    monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")
     client = TestClient(create_app(manager=RadioManager([
         SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
     ])))
 
-    added = client.post("/api/v1/radios", json={"id": "sdr1", "model": "Test SDR"})
-    mapped = client.post("/api/v1/radios/sdr1/mapping", json={"device": "plughw:CARD=Device,DEV=0"})
-    removed = client.delete("/api/v1/radios/sdr1")
+    headers = {"Authorization": "Bearer test-token"}
+    added = client.post("/api/v1/radios", json={"id": "sdr1", "model": "Test SDR"}, headers=headers)
+    mapped = client.post(
+        "/api/v1/radios/sdr1/mapping",
+        json={"device": "plughw:CARD=Device,DEV=0"},
+        headers=headers,
+    )
+    removed = client.delete("/api/v1/radios/sdr1", headers=headers)
 
     assert added.status_code == 200
     assert mapped.json()["mapping"]["device"] == "plughw:CARD=Device,DEV=0"
@@ -150,14 +159,18 @@ def test_radios_endpoint_exposes_multi_radio_status() -> None:
     assert all(radio["capabilities"]["ptt"] is False for radio in response.json()["radios"])
 
 
-def test_simulator_radio_can_be_selected_without_enabling_transmit() -> None:
+def test_simulator_radio_can_be_selected_without_enabling_transmit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")
     manager = RadioManager([
         SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
         SimulatedRadio("ft2980r", "Yaesu FT-2980R", "transceiver"),
     ])
     client = TestClient(create_app(manager=manager))
 
-    response = client.post("/api/v1/radios/ft2980r/select")
+    headers = {"Authorization": "Bearer test-token"}
+    response = client.post("/api/v1/radios/ft2980r/select", headers=headers)
 
     assert response.status_code == 200
     assert response.json() == {"active_radio_id": "ft2980r"}
@@ -168,12 +181,14 @@ def test_simulator_radio_can_be_selected_without_enabling_transmit() -> None:
     assert statuses[1]["active"] is True
 
 
-def test_unknown_radio_selection_is_rejected() -> None:
+def test_unknown_radio_selection_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")
     client = TestClient(create_app(manager=RadioManager([
         SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
     ])))
 
-    response = client.post("/api/v1/radios/not-real/select")
+    headers = {"Authorization": "Bearer test-token"}
+    response = client.post("/api/v1/radios/not-real/select", headers=headers)
 
     assert response.status_code == 404
 
