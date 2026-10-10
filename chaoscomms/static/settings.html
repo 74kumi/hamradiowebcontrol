@@ -127,7 +127,9 @@
       const data = await response.json();
       bluetoothStatus.textContent = data.status;
       const devices = document.getElementById("bluetooth-devices");
-      devices.textContent = data.devices.length ? data.devices.join("\n") : data.message;
+      devices.textContent = data.devices.length
+        ? data.devices.map((device) => `${device.name} (${device.address})`).join("\n")
+        : data.message;
     });
     document.getElementById("bluetooth-pair").addEventListener("click", async () => {
       const response = await fetch("/api/v1/bluetooth/pair", { method: "POST", headers: authHeaders() });

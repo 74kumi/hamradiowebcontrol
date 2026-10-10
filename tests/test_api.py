@@ -65,6 +65,7 @@ def test_settings_page_and_endpoint_expose_receive_only_mapping() -> None:
 
 
 def test_bluetooth_actions_are_disabled_in_simulator_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
     monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")
     client = TestClient(create_app(radio=FakeRadio()))
 

@@ -9,6 +9,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from chaoscomms.aprs import APRSManager, SimulatedAPRS
 from chaoscomms.audio import AudioCapture
 from chaoscomms.auth import control_authentication_configured, require_control_token
+from chaoscomms.bluetooth import discover_devices
 from chaoscomms.config import build_runtime
 from chaoscomms.devices import inventory, is_safe_mapping_path
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
@@ -230,13 +231,16 @@ def create_app(
 
     @app.post("/api/v1/bluetooth/scan")
     def bluetooth_scan() -> dict[str, object]:
-        return {
-            "status": "disabled",
-            "devices": [],
-            "message": "Bluetooth scanning is disabled while CHAOSCOMMS_MODE=simulator",
-            "receive_only": True,
-            "ptt": False,
-        }
+        if app.state.runtime_mode == "simulator":
+            return {
+                "status": "disabled",
+                "devices": [],
+                "message": "Bluetooth scanning is disabled while CHAOSCOMMS_MODE=simulator",
+                "receive_only": True,
+                "ptt": False,
+            }
+        result = discover_devices()
+        return {**result, "receive_only": True, "ptt": False}
 
     @app.post("/api/v1/bluetooth/pair")
     def bluetooth_pair() -> dict[str, object]:
