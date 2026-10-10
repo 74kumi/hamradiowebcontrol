@@ -1,5 +1,65 @@
 const setText = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
 
+let audioSocket = null;
+let audioContext = null;
+let nextAudioTime = 0;
+
+const stopAudio = () => {
+  if (audioSocket) audioSocket.close();
+  audioSocket = null;
+  if (audioContext) audioContext.close();
+  audioContext = null;
+  nextAudioTime = 0;
+  setText("audio-state", "Stopped");
+  document.getElementById("audio-toggle").textContent = "Start audio";
+};
+
+const playPcmChunk = (buffer) => {
+  if (!audioContext) return;
+  const samples = new Int16Array(buffer);
+  const frames = Math.floor(samples.length / 2);
+  const audioBuffer = audioContext.createBuffer(2, frames, 48000);
+  const left = audioBuffer.getChannelData(0);
+  const right = audioBuffer.getChannelData(1);
+  for (let i = 0; i < frames; i += 1) {
+    left[i] = samples[i * 2] / 32768;
+    right[i] = samples[i * 2 + 1] / 32768;
+  }
+  nextAudioTime = Math.max(nextAudioTime, audioContext.currentTime + 0.05);
+  const source = audioContext.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(audioContext.destination);
+  source.start(nextAudioTime);
+  nextAudioTime += audioBuffer.duration;
+};
+
+const startAudio = async () => {
+  audioContext = new AudioContext();
+  await audioContext.resume();
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  audioSocket = new WebSocket(`${protocol}://${location.host}/api/v1/audio/stream`);
+  audioSocket.binaryType = "arraybuffer";
+  audioSocket.onopen = () => {
+    setText("audio-state", "Playing");
+    document.getElementById("audio-toggle").textContent = "Stop audio";
+  };
+  audioSocket.onmessage = (event) => playPcmChunk(event.data);
+  audioSocket.onerror = () => {
+    setText("audio-state", "Error");
+    stopAudio();
+  };
+  audioSocket.onclose = () => {
+    if (audioSocket) stopAudio();
+  };
+};
+
+const toggleAudio = async () => {
+  if (audioSocket) stopAudio();
+  else await startAudio();
+};
+
+document.getElementById("audio-toggle").addEventListener("click", toggleAudio);
+
 const selectRadio = async (radioId) => {
   try {
     const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/select`, {

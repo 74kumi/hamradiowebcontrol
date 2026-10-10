@@ -61,7 +61,20 @@
       <div class="disabled-control" aria-label="PTT disabled">PTT disabled</div>
     </section>
 
+    <section class="card audio-card">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">RECEIVE AUDIO</p>
+          <h2>SignaLink stream</h2>
+        </div>
+        <span id="audio-state" class="muted">Stopped</span>
+      </div>
+      <p id="audio-details" class="muted">Audio capture is receive-only. No PTT path is used.</p>
+      <button id="audio-toggle" class="audio-toggle" type="button">Start audio</button>
+    </section>
+
     <footer>
+      <a class="back-link" href="/settings">Settings</a>
       <span>Local operation</span>
       <span id="updated">Not updated</span>
     </footer>

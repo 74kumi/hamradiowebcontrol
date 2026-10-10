@@ -1,10 +1,12 @@
+import os
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from chaoscomms.aprs import APRSManager, SimulatedAPRS
+from chaoscomms.audio import AudioCapture
 from chaoscomms.auth import control_authentication_configured, require_control_token
 from chaoscomms.config import build_runtime
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
@@ -38,11 +40,16 @@ def create_app(
     app.state.aprs = aprs or APRSManager(SimulatedAPRS())
     app.state.js8call = js8call or JS8CallManager(SimulatedJS8Call())
     app.state.resources = resources or ResourceManager()
+    app.state.audio = AudioCapture()
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
     def dashboard() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
+
+    @app.get("/settings")
+    def settings_page() -> FileResponse:
+        return FileResponse(STATIC_DIR / "settings.html")
 
     @app.get("/api/v1/about")
     def about() -> dict[str, str]:
@@ -68,6 +75,16 @@ def create_app(
     def radios() -> dict[str, object]:
         return {"radios": app.state.manager.statuses()}
 
+    @app.get("/api/v1/settings")
+    def settings() -> dict[str, object]:
+        return {
+            "runtime_mode": os.getenv("CHAOSCOMMS_MODE", "live").strip().lower(),
+            "receive_only": True,
+            "ptt": False,
+            "radios": app.state.manager.statuses(),
+            "audio": app.state.audio.status(),
+        }
+
     @app.post("/api/v1/radios/{radio_id}/select")
     def select_radio(radio_id: str) -> dict[str, object]:
         try:
@@ -88,6 +105,24 @@ def create_app(
             "receive_only": app.state.resources.policy.receive_only,
             "transmit_enabled": False,
         }
+
+    @app.get("/api/v1/audio")
+    def audio_status() -> dict[str, object]:
+        return app.state.audio.status()
+
+    @app.websocket("/api/v1/audio/stream")
+    async def audio_stream(websocket: WebSocket) -> None:
+        await websocket.accept()
+        try:
+            async for chunk in app.state.audio.chunks():
+                await websocket.send_bytes(chunk)
+        except WebSocketDisconnect:
+            pass
+        finally:
+            try:
+                await websocket.close()
+            except RuntimeError:
+                pass
 
     @app.get("/api/v1/js8call")
     def js8call_events() -> dict[str, object]:

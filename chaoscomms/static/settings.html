@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>ChaosComms Settings</title>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">CHAOSCOMMS</p>
+        <h1>Settings</h1>
+      </div>
+      <a class="back-link" href="/">Dashboard</a>
+    </header>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Safety policy</h2><span id="settings-status" class="pill pill-warn">Loading</span></div>
+      <dl class="settings-list">
+        <div><dt>Runtime mode</dt><dd id="runtime-mode">—</dd></div>
+        <div><dt>Receive-only</dt><dd id="receive-only">—</dd></div>
+        <div><dt>PTT / transmit</dt><dd id="ptt-state">—</dd></div>
+      </dl>
+    </section>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Radio mappings</h2><span class="muted">Read-only inventory</span></div>
+      <div id="radio-settings" class="settings-table">Loading…</div>
+    </section>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Audio mapping</h2><span class="muted">Receive only</span></div>
+      <dl class="settings-list">
+        <div><dt>Source</dt><dd id="audio-source">—</dd></div>
+        <div><dt>ALSA device</dt><dd id="audio-device">—</dd></div>
+        <div><dt>Format</dt><dd id="audio-format">—</dd></div>
+      </dl>
+      <p class="muted settings-note">Mappings are intentionally read-only until stable udev identities are committed. No PTT or transmit setting is exposed here.</p>
+    </section>
+  </main>
+  <script>
+    const text = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
+    fetch("/api/v1/settings", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      text("runtime-mode", data.runtime_mode);
+      text("receive-only", data.receive_only ? "Enabled" : "DISABLED");
+      text("ptt-state", data.ptt ? "ENABLED" : "Disabled");
+      text("settings-status", data.receive_only && !data.ptt ? "Safe" : "Review");
+      text("audio-source", data.audio.source);
+      text("audio-device", data.audio.device);
+      text("audio-format", `${data.audio.format} · ${data.audio.sample_rate_hz} Hz · ${data.audio.channels} channels`);
+      document.getElementById("radio-settings").replaceChildren(...data.radios.map((radio) => {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const name = document.createElement("strong");
+        name.textContent = radio.model;
+        const meta = document.createElement("span");
+        meta.textContent = `${radio.id} · ${radio.source} · ${radio.active ? "active" : "standby"}`;
+        row.append(name, meta);
+        return row;
+      }));
+    }).catch(() => text("settings-status", "Unavailable"));
+  </script>
+</body>
+</html>

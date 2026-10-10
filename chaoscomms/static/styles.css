@@ -37,5 +37,17 @@ h2 { font-size: 1.45rem; }
 .safety-mark { display: grid; place-items: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 50%; color: #a7f3d0; background: #123b32; font-weight: 900; }
 .safety-heading { justify-content: flex-start; }
 .disabled-control { margin-top: 20px; padding: 15px; border: 1px solid #39455d; border-radius: 14px; color: #77839a; background: #151c2b; text-align: center; font-weight: 800; }
+.audio-card { display: grid; gap: 12px; }
+.audio-toggle { border: 1px solid #3e806c; border-radius: 12px; padding: 12px 16px; color: #dffdf1; background: #123b32; font: inherit; font-weight: 800; cursor: pointer; }
+.audio-toggle:hover { background: #185342; }
+.settings-card { padding: 22px; margin-bottom: 16px; }
+.settings-list { display: grid; gap: 12px; margin: 18px 0 0; }
+.settings-list div, .settings-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #293752; }
+.settings-list dt { color: #8290aa; }
+.settings-list dd { margin: 0; text-align: right; font-weight: 800; }
+.settings-table { display: grid; gap: 2px; margin-top: 14px; }
+.settings-row span { color: #94a3bb; }
+.settings-note { margin-top: 16px; }
+.back-link { color: #7dd3fc; text-decoration: none; font-weight: 800; }
 footer { padding: 24px 4px 0; color: #65728b; font-size: .8rem; }
 @media (max-width: 500px) { .shell { width: min(100% - 22px, 760px); padding-top: 20px; } .hero { padding: 20px; } .metric { padding: 18px; } }

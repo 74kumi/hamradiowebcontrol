@@ -48,6 +48,20 @@ def test_root_serves_mobile_dashboard() -> None:
     assert "PTT disabled" in response.text
 
 
+def test_settings_page_and_endpoint_expose_receive_only_mapping() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    page = client.get("/settings")
+    payload = client.get("/api/v1/settings")
+
+    assert page.status_code == 200
+    assert "Audio mapping" in page.text
+    assert payload.status_code == 200
+    assert payload.json()["receive_only"] is True
+    assert payload.json()["ptt"] is False
+    assert payload.json()["audio"]["source"] == "alsa"
+
+
 def test_api_metadata_is_available() -> None:
     client = TestClient(create_app(radio=FakeRadio()))
 
