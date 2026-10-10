@@ -181,10 +181,15 @@ class RadioManager:
         if not self.radios:
             raise ValueError("at least one radio is required")
         self.active_radio_id = self.radios[0].radio_id
+        self.mappings: dict[str, dict[str, str]] = {}
 
     def statuses(self) -> list[dict[str, object]]:
         return [
-            {**radio.status_dict(), "active": radio.radio_id == self.active_radio_id}
+            {
+                **radio.status_dict(),
+                "active": radio.radio_id == self.active_radio_id,
+                "mapping": self.mappings.get(radio.radio_id, {}),
+            }
             for radio in self.radios
         ]
 
@@ -192,6 +197,26 @@ class RadioManager:
         if not any(radio.radio_id == radio_id for radio in self.radios):
             raise KeyError(radio_id)
         self.active_radio_id = radio_id
+
+    def set_mapping(self, radio_id: str, mapping: dict[str, str]) -> None:
+        if not any(radio.radio_id == radio_id for radio in self.radios):
+            raise KeyError(radio_id)
+        self.mappings[radio_id] = mapping
+
+    def add_simulator(self, radio_id: str, model: str) -> None:
+        if any(radio.radio_id == radio_id for radio in self.radios):
+            raise ValueError("radio id already exists")
+        self.radios.append(SimulatedRadio(radio_id, model, "transceiver"))
+
+    def remove(self, radio_id: str) -> None:
+        if len(self.radios) == 1:
+            raise ValueError("at least one radio is required")
+        if radio_id not in {radio.radio_id for radio in self.radios}:
+            raise KeyError(radio_id)
+        self.radios = [radio for radio in self.radios if radio.radio_id != radio_id]
+        self.mappings.pop(radio_id, None)
+        if self.active_radio_id == radio_id:
+            self.active_radio_id = self.radios[0].radio_id
 
     def active_radio(self) -> ManagedRadio:
         return next(radio for radio in self.radios if radio.radio_id == self.active_radio_id)

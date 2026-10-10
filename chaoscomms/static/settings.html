@@ -34,6 +34,17 @@
         </div>
       </div>
       <div id="radio-settings" class="settings-table">Loading…</div>
+      <div class="settings-control">
+        <label for="new-radio-id">Add simulator radio</label>
+        <input id="new-radio-id" placeholder="radio id, e.g. sdr1">
+        <input id="new-radio-model" placeholder="display model">
+        <button id="add-radio" class="secondary-button" type="button">Add radio</button>
+      </div>
+      <div class="settings-control">
+        <label for="map-device">Assign discovered device</label>
+        <select id="map-device"></select>
+        <button id="map-radio" class="secondary-button" type="button">Assign to active radio</button>
+      </div>
     </section>
     <section class="card settings-card">
       <div class="section-heading"><h2>Bluetooth radio</h2><span id="bluetooth-state" class="muted">Simulator mode</span></div>
@@ -74,7 +85,16 @@
         name.textContent = radio.model;
         const meta = document.createElement("span");
         meta.textContent = `${radio.id} · ${radio.source} · ${radio.active ? "active" : "standby"}`;
-        row.append(name, meta);
+        const remove = document.createElement("button");
+        remove.className = "secondary-button";
+        remove.type = "button";
+        remove.textContent = "Remove";
+        remove.disabled = radios.length <= 1;
+        remove.addEventListener("click", async () => {
+          await fetch(`/api/v1/radios/${encodeURIComponent(radio.id)}`, { method: "DELETE" });
+          window.location.reload();
+        });
+        row.append(name, meta, remove);
         return row;
       }));
     };
@@ -102,6 +122,38 @@
       const response = await fetch("/api/v1/bluetooth/pair", { method: "POST" });
       const data = await response.json();
       bluetoothStatus.textContent = data.status;
+    });
+    document.getElementById("add-radio").addEventListener("click", async () => {
+      const id = document.getElementById("new-radio-id").value.trim();
+      const model = document.getElementById("new-radio-model").value.trim();
+      const response = await fetch("/api/v1/radios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, model }),
+      });
+      text("settings-status", response.ok ? "Radio added" : "Add failed");
+      if (response.ok) window.location.reload();
+    });
+    document.getElementById("map-radio").addEventListener("click", async () => {
+      const radioId = document.getElementById("active-radio").value;
+      const device = document.getElementById("map-device").value;
+      const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/mapping`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device }),
+      });
+      text("settings-status", response.ok ? "Mapping assigned" : "Mapping failed");
+      if (response.ok) window.location.reload();
+    });
+    fetch("/api/v1/devices", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      const devices = [...data.serial, ...data.audio];
+      const select = document.getElementById("map-device");
+      select.replaceChildren(...devices.map((device) => {
+        const option = document.createElement("option");
+        option.value = device.path;
+        option.textContent = `${device.kind}: ${device.path}`;
+        return option;
+      }));
     });
     fetch("/api/v1/settings", { cache: "no-store" }).then((r) => r.json()).then((data) => {
       radios = data.radios;

@@ -75,6 +75,32 @@ def test_bluetooth_actions_are_disabled_in_simulator_mode() -> None:
     assert pair.json()["ptt"] is False
 
 
+def test_simulator_radio_can_be_added_mapped_and_removed(monkeypatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
+    client = TestClient(create_app(manager=RadioManager([
+        SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
+    ])))
+
+    added = client.post("/api/v1/radios", json={"id": "sdr1", "model": "Test SDR"})
+    mapped = client.post("/api/v1/radios/sdr1/mapping", json={"device": "plughw:CARD=Device,DEV=0"})
+    removed = client.delete("/api/v1/radios/sdr1")
+
+    assert added.status_code == 200
+    assert mapped.json()["mapping"]["device"] == "plughw:CARD=Device,DEV=0"
+    assert removed.status_code == 200
+    assert all(radio["id"] != "sdr1" for radio in removed.json()["radios"])
+
+
+def test_device_inventory_is_receive_only() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    response = client.get("/api/v1/devices")
+
+    assert response.status_code == 200
+    assert response.json()["receive_only"] is True
+    assert response.json()["ptt"] is False
+
+
 def test_api_metadata_is_available() -> None:
     client = TestClient(create_app(radio=FakeRadio()))
 

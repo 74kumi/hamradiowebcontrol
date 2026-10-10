@@ -9,6 +9,7 @@ from chaoscomms.aprs import APRSManager, SimulatedAPRS
 from chaoscomms.audio import AudioCapture
 from chaoscomms.auth import control_authentication_configured, require_control_token
 from chaoscomms.config import build_runtime
+from chaoscomms.devices import inventory
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
 from chaoscomms.radio import Radio, RadioManager, SimulatedRadio
 from chaoscomms.resources import ResourceManager
@@ -41,6 +42,7 @@ def create_app(
     app.state.js8call = js8call or JS8CallManager(SimulatedJS8Call())
     app.state.resources = resources or ResourceManager()
     app.state.audio = AudioCapture()
+    app.state.runtime_mode = os.getenv("CHAOSCOMMS_MODE", "live").strip().lower()
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/")
@@ -74,6 +76,47 @@ def create_app(
     @app.get("/api/v1/radios")
     def radios() -> dict[str, object]:
         return {"radios": app.state.manager.statuses()}
+
+    @app.get("/api/v1/devices")
+    def devices() -> dict[str, object]:
+        return inventory()
+
+    @app.post("/api/v1/radios")
+    def add_radio(payload: dict[str, object]) -> dict[str, object]:
+        if app.state.runtime_mode != "simulator":
+            raise HTTPException(status_code=409, detail="radio changes require simulator mode")
+        radio_id = str(payload.get("id", "")).strip()
+        model = str(payload.get("model", "")).strip()
+        if not radio_id or not model or "/" in radio_id:
+            raise HTTPException(status_code=400, detail="id and model are required")
+        try:
+            app.state.manager.add_simulator(radio_id, model)
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return {"radios": app.state.manager.statuses(), "receive_only": True, "ptt": False}
+
+    @app.delete("/api/v1/radios/{radio_id}")
+    def remove_radio(radio_id: str) -> dict[str, object]:
+        if app.state.runtime_mode != "simulator":
+            raise HTTPException(status_code=409, detail="radio changes require simulator mode")
+        try:
+            app.state.manager.remove(radio_id)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="radio not found") from error
+        except ValueError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        app.state.radio = app.state.manager.active_radio()
+        return {"radios": app.state.manager.statuses(), "receive_only": True, "ptt": False}
+
+    @app.post("/api/v1/radios/{radio_id}/mapping")
+    def map_radio(radio_id: str, payload: dict[str, str]) -> dict[str, object]:
+        if app.state.runtime_mode != "simulator":
+            raise HTTPException(status_code=409, detail="mapping changes require simulator mode")
+        try:
+            app.state.manager.set_mapping(radio_id, payload)
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="radio not found") from error
+        return {"radio_id": radio_id, "mapping": payload, "receive_only": True, "ptt": False}
 
     @app.get("/api/v1/settings")
     def settings() -> dict[str, object]:
