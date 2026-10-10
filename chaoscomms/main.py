@@ -14,3 +14,7 @@ def main() -> None:
         ssl_keyfile="/etc/chaoscomms/tls/chaoscomms.key",
         ssl_certfile="/etc/chaoscomms/tls/chaoscomms.crt",
     )
+
+
+if __name__ == "__main__":
+    main()
