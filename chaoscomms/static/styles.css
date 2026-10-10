@@ -40,7 +40,16 @@ h2 { font-size: 1.45rem; }
 .audio-card { display: grid; gap: 12px; }
 .audio-toggle { border: 1px solid #3e806c; border-radius: 12px; padding: 12px 16px; color: #dffdf1; background: #123b32; font: inherit; font-weight: 800; cursor: pointer; }
 .audio-toggle:hover { background: #185342; }
+.audio-meter { display: block; width: 100%; height: 64px; border: 1px solid #293752; border-radius: 10px; background: #0d1424; }
 .settings-card { padding: 22px; margin-bottom: 16px; }
+.settings-control { display: grid; gap: 8px; margin-top: 16px; }
+.settings-control label { color: #8290aa; font-size: .82rem; font-weight: 800; }
+.settings-control select { border: 1px solid #293752; border-radius: 10px; padding: 11px; color: #f5f7fb; background: #121c30; font: inherit; }
+.settings-control .audio-toggle { width: fit-content; }
+.settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.secondary-button { border: 1px solid #293752; border-radius: 10px; padding: 11px 14px; color: #dbe7f8; background: #121c30; font: inherit; font-weight: 800; cursor: pointer; }
+.secondary-button:hover:not(:disabled) { border-color: #7dd3fc; }
+.secondary-button:disabled { cursor: not-allowed; opacity: .5; }
 .settings-list { display: grid; gap: 12px; margin: 18px 0 0; }
 .settings-list div, .settings-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #293752; }
 .settings-list dt { color: #8290aa; }

@@ -2,13 +2,42 @@ const setText = (id, value) => { document.getElementById(id).textContent = value
 
 let audioSocket = null;
 let audioContext = null;
+let audioAnalyser = null;
+let audioMeterFrame = null;
 let nextAudioTime = 0;
+
+const drawAudioMeter = () => {
+  const canvas = document.getElementById("audio-meter");
+  const context = canvas.getContext("2d");
+  const values = new Uint8Array(audioAnalyser ? audioAnalyser.frequencyBinCount : 1);
+  const draw = () => {
+    context.fillStyle = "#0d1424";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    let level = 0;
+    if (audioAnalyser) {
+      audioAnalyser.getByteTimeDomainData(values);
+      for (const value of values) level = Math.max(level, Math.abs(value - 128) / 128);
+    }
+    const width = Math.max(2, Math.round(level * canvas.width));
+    const gradient = context.createLinearGradient(0, 0, canvas.width, 0);
+    gradient.addColorStop(0, "#4ade80");
+    gradient.addColorStop(0.75, "#facc15");
+    gradient.addColorStop(1, "#f87171");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, canvas.height);
+    audioMeterFrame = requestAnimationFrame(draw);
+  };
+  draw();
+};
 
 const stopAudio = () => {
   if (audioSocket) audioSocket.close();
   audioSocket = null;
   if (audioContext) audioContext.close();
   audioContext = null;
+  audioAnalyser = null;
+  if (audioMeterFrame) cancelAnimationFrame(audioMeterFrame);
+  audioMeterFrame = null;
   nextAudioTime = 0;
   setText("audio-state", "Stopped");
   document.getElementById("audio-toggle").textContent = "Start audio";
@@ -28,7 +57,7 @@ const playPcmChunk = (buffer) => {
   nextAudioTime = Math.max(nextAudioTime, audioContext.currentTime + 0.05);
   const source = audioContext.createBufferSource();
   source.buffer = audioBuffer;
-  source.connect(audioContext.destination);
+  source.connect(audioAnalyser || audioContext.destination);
   source.start(nextAudioTime);
   nextAudioTime += audioBuffer.duration;
 };
@@ -36,6 +65,10 @@ const playPcmChunk = (buffer) => {
 const startAudio = async () => {
   audioContext = new AudioContext();
   await audioContext.resume();
+  audioAnalyser = audioContext.createAnalyser();
+  audioAnalyser.fftSize = 256;
+  audioAnalyser.connect(audioContext.destination);
+  drawAudioMeter();
   const protocol = location.protocol === "https:" ? "wss" : "ws";
   audioSocket = new WebSocket(`${protocol}://${location.host}/api/v1/audio/stream`);
   audioSocket.binaryType = "arraybuffer";
@@ -54,8 +87,16 @@ const startAudio = async () => {
 };
 
 const toggleAudio = async () => {
-  if (audioSocket) stopAudio();
-  else await startAudio();
+  if (audioSocket) {
+    stopAudio();
+    return;
+  }
+  try {
+    await startAudio();
+  } catch (error) {
+    stopAudio();
+    setText("audio-state", "Unavailable");
+  }
 };
 
 document.getElementById("audio-toggle").addEventListener("click", toggleAudio);

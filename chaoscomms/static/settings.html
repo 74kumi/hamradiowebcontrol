@@ -24,9 +24,27 @@
       </dl>
     </section>
     <section class="card settings-card">
-      <div class="section-heading"><h2>Radio mappings</h2><span class="muted">Read-only inventory</span></div>
+      <div class="section-heading"><h2>Radio mappings</h2><span class="muted">Safe simulator control</span></div>
+      <div class="settings-control">
+        <label for="active-radio">Active radio</label>
+        <select id="active-radio"></select>
+        <div class="settings-actions">
+          <button id="apply-radio" class="audio-toggle" type="button">Apply selection</button>
+          <button id="refresh-settings" class="secondary-button" type="button">Refresh</button>
+        </div>
+      </div>
       <div id="radio-settings" class="settings-table">Loading…</div>
     </section>
+    <section class="card settings-card">
+      <div class="section-heading"><h2>Bluetooth radio</h2><span id="bluetooth-state" class="muted">Simulator mode</span></div>
+      <p class="muted">Bluetooth discovery and pairing are disabled while hardware control is not explicitly enabled.</p>
+      <div class="settings-actions">
+        <button id="bluetooth-scan" class="secondary-button" type="button">Scan Bluetooth</button>
+        <button id="bluetooth-pair" class="secondary-button" type="button" disabled>Pair selected</button>
+      </div>
+      <div id="bluetooth-devices" class="settings-table">No scan performed</div>
+    </section>
+
     <section class="card settings-card">
       <div class="section-heading"><h2>Audio mapping</h2><span class="muted">Receive only</span></div>
       <dl class="settings-list">
@@ -39,15 +57,17 @@
   </main>
   <script>
     const text = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
-    fetch("/api/v1/settings", { cache: "no-store" }).then((r) => r.json()).then((data) => {
-      text("runtime-mode", data.runtime_mode);
-      text("receive-only", data.receive_only ? "Enabled" : "DISABLED");
-      text("ptt-state", data.ptt ? "ENABLED" : "Disabled");
-      text("settings-status", data.receive_only && !data.ptt ? "Safe" : "Review");
-      text("audio-source", data.audio.source);
-      text("audio-device", data.audio.device);
-      text("audio-format", `${data.audio.format} · ${data.audio.sample_rate_hz} Hz · ${data.audio.channels} channels`);
-      document.getElementById("radio-settings").replaceChildren(...data.radios.map((radio) => {
+    let radios = [];
+    const renderRadios = () => {
+      const select = document.getElementById("active-radio");
+      select.replaceChildren(...radios.map((radio) => {
+        const option = document.createElement("option");
+        option.value = radio.id;
+        option.textContent = `${radio.model} (${radio.source})`;
+        option.selected = radio.active === true;
+        return option;
+      }));
+      document.getElementById("radio-settings").replaceChildren(...radios.map((radio) => {
         const row = document.createElement("div");
         row.className = "settings-row";
         const name = document.createElement("strong");
@@ -57,6 +77,42 @@
         row.append(name, meta);
         return row;
       }));
+    };
+    document.getElementById("apply-radio").addEventListener("click", async () => {
+      const radioId = document.getElementById("active-radio").value;
+      const response = await fetch(`/api/v1/radios/${encodeURIComponent(radioId)}/select`, { method: "POST" });
+      if (response.ok) {
+        text("settings-status", "Applied");
+        window.location.reload();
+      } else {
+        text("settings-status", "Selection failed");
+      }
+    });
+    document.getElementById("refresh-settings").addEventListener("click", () => window.location.reload());
+    const bluetoothStatus = document.getElementById("bluetooth-state");
+    document.getElementById("bluetooth-scan").addEventListener("click", async () => {
+      bluetoothStatus.textContent = "Scanning…";
+      const response = await fetch("/api/v1/bluetooth/scan", { method: "POST" });
+      const data = await response.json();
+      bluetoothStatus.textContent = data.status;
+      const devices = document.getElementById("bluetooth-devices");
+      devices.textContent = data.devices.length ? data.devices.join("\n") : data.message;
+    });
+    document.getElementById("bluetooth-pair").addEventListener("click", async () => {
+      const response = await fetch("/api/v1/bluetooth/pair", { method: "POST" });
+      const data = await response.json();
+      bluetoothStatus.textContent = data.status;
+    });
+    fetch("/api/v1/settings", { cache: "no-store" }).then((r) => r.json()).then((data) => {
+      radios = data.radios;
+      renderRadios();
+      text("runtime-mode", data.runtime_mode);
+      text("receive-only", data.receive_only ? "Enabled" : "DISABLED");
+      text("ptt-state", data.ptt ? "ENABLED" : "Disabled");
+      text("settings-status", data.receive_only && !data.ptt ? "Safe" : "Review");
+      text("audio-source", data.audio.source);
+      text("audio-device", data.audio.device);
+      text("audio-format", `${data.audio.format} · ${data.audio.sample_rate_hz} Hz · ${data.audio.channels} channels`);
     }).catch(() => text("settings-status", "Unavailable"));
   </script>
 </body>

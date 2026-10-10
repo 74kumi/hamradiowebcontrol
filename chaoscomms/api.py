@@ -106,6 +106,25 @@ def create_app(
             "transmit_enabled": False,
         }
 
+    @app.post("/api/v1/bluetooth/scan")
+    def bluetooth_scan() -> dict[str, object]:
+        return {
+            "status": "disabled",
+            "devices": [],
+            "message": "Bluetooth scanning is disabled while CHAOSCOMMS_MODE=simulator",
+            "receive_only": True,
+            "ptt": False,
+        }
+
+    @app.post("/api/v1/bluetooth/pair")
+    def bluetooth_pair() -> dict[str, object]:
+        return {
+            "status": "disabled",
+            "message": "Bluetooth pairing requires an explicitly enabled hardware mode",
+            "receive_only": True,
+            "ptt": False,
+        }
+
     @app.get("/api/v1/audio")
     def audio_status() -> dict[str, object]:
         return app.state.audio.status()

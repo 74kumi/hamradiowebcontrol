@@ -56,10 +56,23 @@ def test_settings_page_and_endpoint_expose_receive_only_mapping() -> None:
 
     assert page.status_code == 200
     assert "Audio mapping" in page.text
+    assert "active-radio" in page.text
     assert payload.status_code == 200
     assert payload.json()["receive_only"] is True
     assert payload.json()["ptt"] is False
     assert payload.json()["audio"]["source"] == "alsa"
+
+
+def test_bluetooth_actions_are_disabled_in_simulator_mode() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    scan = client.post("/api/v1/bluetooth/scan")
+    pair = client.post("/api/v1/bluetooth/pair")
+
+    assert scan.json()["status"] == "disabled"
+    assert scan.json()["devices"] == []
+    assert pair.json()["status"] == "disabled"
+    assert pair.json()["ptt"] is False
 
 
 def test_api_metadata_is_available() -> None:
