@@ -79,6 +79,41 @@ def test_bluetooth_actions_are_disabled_in_simulator_mode(monkeypatch: pytest.Mo
     assert pair.json()["ptt"] is False
 
 
+def test_handmic_simulator_exposes_safe_events(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    status = client.get("/api/v1/bluetooth/mic")
+    mapping = client.post(
+        "/api/v1/bluetooth/mic/mapping",
+        json={"button": "button_1", "action": "volume_up"},
+    )
+    safe_event = client.post("/api/v1/bluetooth/mic/event", json={"button": "button_1"})
+    ptt_event = client.post("/api/v1/bluetooth/mic/event", json={"button": "ptt"})
+
+    assert status.json()["paired"] is False
+    assert mapping.status_code == 200
+    assert safe_event.json()["action"] == "volume_up"
+    assert ptt_event.json() == {
+        "button": "ptt",
+        "action": "blocked_ptt",
+        "ptt": False,
+        "transmit_enabled": False,
+    }
+
+
+def test_handmic_rejects_unsafe_mapping(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    response = client.post(
+        "/api/v1/bluetooth/mic/mapping",
+        json={"button": "button_1", "action": "ptt"},
+    )
+
+    assert response.status_code == 400
+
+
 def test_simulator_radio_can_be_added_mapped_and_removed(monkeypatch) -> None:
     monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
     monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")

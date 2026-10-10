@@ -63,6 +63,19 @@
     </section>
 
     <section class="card settings-card">
+      <div class="section-heading"><h2>Bluetooth hand mic</h2><span id="mic-state" class="muted">Simulator</span></div>
+      <p class="muted">Simulated input mapping only. Pairing is not enabled and PTT is permanently blocked.</p>
+      <div id="mic-mappings" class="settings-table">Loading…</div>
+      <div class="settings-actions">
+        <button class="secondary-button mic-test" data-button="button_1" type="button">Test button 1</button>
+        <button class="secondary-button mic-test" data-button="button_2" type="button">Test button 2</button>
+        <button class="secondary-button mic-test" data-button="button_3" type="button">Test button 3</button>
+        <button class="secondary-button mic-test" data-button="ptt" type="button">Test PTT block</button>
+      </div>
+      <div id="mic-event" class="muted">No simulated event</div>
+    </section>
+
+    <section class="card settings-card">
       <div class="section-heading"><h2>Audio mapping</h2><span class="muted">Receive only</span></div>
       <dl class="settings-list">
         <div><dt>Source</dt><dd id="audio-source">—</dd></div>
@@ -157,6 +170,47 @@
       });
       text("settings-status", response.ok ? "Mapping assigned" : "Mapping failed");
       if (response.ok) window.location.reload();
+    });
+    const micActions = ["none", "select_active_radio", "receive_audio_toggle", "volume_up", "volume_down"];
+    const renderMic = (data) => {
+      text("mic-state", `${data.status} · PTT blocked`);
+      const container = document.getElementById("mic-mappings");
+      container.replaceChildren(...data.buttons.map((button) => {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const label = document.createElement("strong");
+        label.textContent = button;
+        const select = document.createElement("select");
+        micActions.forEach((action) => {
+          const option = document.createElement("option");
+          option.value = action;
+          option.textContent = action;
+          option.selected = data.mapping[button] === action;
+          select.append(option);
+        });
+        select.disabled = button === "ptt";
+        select.addEventListener("change", async () => {
+          await fetch("/api/v1/bluetooth/mic/mapping", {
+            method: "POST",
+            headers: { ...authHeaders(), "Content-Type": "application/json" },
+            body: JSON.stringify({ button, action: select.value }),
+          });
+        });
+        row.append(label, select);
+        return row;
+      }));
+    };
+    fetch("/api/v1/bluetooth/mic", { cache: "no-store" }).then((r) => r.json()).then(renderMic);
+    document.querySelectorAll(".mic-test").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const response = await fetch("/api/v1/bluetooth/mic/event", {
+          method: "POST",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ button: button.dataset.button }),
+        });
+        const data = await response.json();
+        text("mic-event", `${data.button}: ${data.action} · PTT ${data.ptt ? "enabled" : "blocked"}`);
+      });
     });
     fetch("/api/v1/devices", { cache: "no-store" }).then((r) => r.json()).then((data) => {
       const devices = [...data.serial, ...data.audio];

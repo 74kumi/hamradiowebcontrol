@@ -12,6 +12,7 @@ from chaoscomms.auth import control_authentication_configured, require_control_t
 from chaoscomms.bluetooth import discover_devices
 from chaoscomms.config import build_runtime
 from chaoscomms.devices import inventory, is_safe_mapping_path
+from chaoscomms.handmic import HandMic
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
 from chaoscomms.radio import Radio, RadioManager, SimulatedRadio
 from chaoscomms.resources import ResourceManager
@@ -49,6 +50,7 @@ def create_app(
     app.state.js8call = js8call or JS8CallManager(SimulatedJS8Call())
     app.state.resources = resources or ResourceManager()
     app.state.audio = AudioCapture()
+    app.state.handmic = HandMic()
     app.state.runtime_mode = os.getenv("CHAOSCOMMS_MODE", "live").strip().lower()
     app.state.state_path = state_path or (
         Path(os.environ.get("CHAOSCOMMS_STATE_FILE", "/var/lib/chaoscomms/settings.json"))
@@ -60,6 +62,7 @@ def create_app(
         if app.state.runtime_mode != "simulator":
             persisted = {**persisted, "simulator_radios": []}
         app.state.manager.restore(persisted)
+        app.state.handmic.restore(persisted.get("hand_mic", {}))
     app.state.web_auth_required = web_auth_required
 
     @app.middleware("http")
@@ -84,7 +87,10 @@ def create_app(
 
     def persist_settings() -> None:
         if app.state.state_path is not None:
-            save_state(app.state.state_path, app.state.manager.persistent_state())
+            save_state(app.state.state_path, {
+                **app.state.manager.persistent_state(),
+                "hand_mic": app.state.handmic.persistent_state(),
+            })
 
     @app.get("/login")
     def login_page() -> FileResponse:
@@ -242,6 +248,30 @@ def create_app(
         result = discover_devices()
         return {**result, "receive_only": True, "ptt": False}
 
+    @app.get("/api/v1/bluetooth/mic")
+    def bluetooth_mic() -> dict[str, object]:
+        return app.state.handmic.status()
+
+    @app.post("/api/v1/bluetooth/mic/mapping")
+    def bluetooth_mic_mapping(payload: dict[str, str]) -> dict[str, object]:
+        try:
+            app.state.handmic.set_mapping(
+                str(payload.get("button", "")),
+                str(payload.get("action", "")),
+            )
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="unknown hand-mic button") from error
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        persist_settings()
+        return app.state.handmic.status()
+
+    @app.post("/api/v1/bluetooth/mic/event")
+    def bluetooth_mic_event(payload: dict[str, str]) -> dict[str, object]:
+        try:
+            return app.state.handmic.event(str(payload.get("button", "")))
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail="unknown hand-mic button") from error
     @app.post("/api/v1/bluetooth/pair")
     def bluetooth_pair() -> dict[str, object]:
         return {
