@@ -10,7 +10,7 @@ from chaoscomms.aprs import APRSManager, SimulatedAPRS
 from chaoscomms.audio import AudioCapture
 from chaoscomms.auth import control_authentication_configured, require_control_token
 from chaoscomms.config import build_runtime
-from chaoscomms.devices import inventory
+from chaoscomms.devices import inventory, is_safe_mapping_path
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
 from chaoscomms.radio import Radio, RadioManager, SimulatedRadio
 from chaoscomms.resources import ResourceManager
@@ -55,7 +55,10 @@ def create_app(
         else None
     )
     if app.state.state_path is not None:
-        app.state.manager.restore(load_state(app.state.state_path))
+        persisted = load_state(app.state.state_path)
+        if app.state.runtime_mode != "simulator":
+            persisted = {**persisted, "simulator_radios": []}
+        app.state.manager.restore(persisted)
     app.state.web_auth_required = web_auth_required
 
     @app.middleware("http")
@@ -175,12 +178,23 @@ def create_app(
     def map_radio(radio_id: str, payload: dict[str, str]) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="mapping changes require simulator mode")
+        device = str(payload.get("device", "")).strip()
+        if not device or not is_safe_mapping_path(device):
+            raise HTTPException(
+                status_code=400,
+                detail="device path is not an allowed discovered device",
+            )
         try:
-            app.state.manager.set_mapping(radio_id, payload)
+            app.state.manager.set_mapping(radio_id, {"device": device})
         except KeyError as error:
             raise HTTPException(status_code=404, detail="radio not found") from error
         persist_settings()
-        return {"radio_id": radio_id, "mapping": payload, "receive_only": True, "ptt": False}
+        return {
+            "radio_id": radio_id,
+            "mapping": {"device": device},
+            "receive_only": True,
+            "ptt": False,
+        }
 
     @app.get("/api/v1/settings")
     def settings() -> dict[str, object]:

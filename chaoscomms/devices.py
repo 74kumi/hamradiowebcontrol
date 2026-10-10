@@ -40,6 +40,12 @@ def audio_devices() -> list[dict[str, str]]:
     return devices
 
 
+def is_safe_mapping_path(path: str) -> bool:
+    if path in {device["path"] for device in serial_devices() + audio_devices()}:
+        return True
+    return bool(re.fullmatch(r"plughw:CARD=[A-Za-z0-9_-]+,DEV=[0-9]+", path))
+
+
 def inventory() -> dict[str, object]:
     return {
         "serial": serial_devices(),

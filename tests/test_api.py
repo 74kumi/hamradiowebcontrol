@@ -125,6 +125,20 @@ def test_simulator_settings_persist_across_app_restart(tmp_path, monkeypatch) ->
     assert radios[1]["mapping"]["device"] == "plughw:CARD=Device,DEV=0"
 
 
+def test_mapping_rejects_arbitrary_device_path(monkeypatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
+    client = TestClient(create_app(manager=RadioManager([
+        SimulatedRadio("ft891", "Yaesu FT-891", "transceiver"),
+    ])))
+
+    response = client.post(
+        "/api/v1/radios/ft891/mapping",
+        json={"device": "/etc/shadow"},
+    )
+
+    assert response.status_code == 400
+
+
 def test_device_inventory_is_receive_only() -> None:
     client = TestClient(create_app(radio=FakeRadio()))
 
