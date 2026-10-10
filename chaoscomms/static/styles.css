@@ -45,6 +45,10 @@ h2 { font-size: 1.45rem; }
 .settings-control { display: grid; gap: 8px; margin-top: 16px; }
 .settings-control label { color: #8290aa; font-size: .82rem; font-weight: 800; }
 .settings-control select { display: block; width: 100%; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid #293752; border-radius: 10px; padding: 11px; color: #f5f7fb; background: #121c30; font: inherit; }
+.login-shell { max-width: 520px; }
+.login-card { padding: 28px; }
+.error-text { min-height: 1.3em; color: #ff8f9a; }
+
 .settings-control input { width: 100%; min-width: 0; border: 1px solid #293752; border-radius: 10px; padding: 11px; color: #f5f7fb; background: #121c30; font: inherit; }
 .settings-control .audio-toggle { width: fit-content; }
 .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -9,6 +9,7 @@ description = "Receive-only web control plane for a portable amateur-radio rack"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115,<1",
+  "itsdangerous>=2.2,<3",
   "uvicorn[standard]>=0.30,<1",
 ]
 
