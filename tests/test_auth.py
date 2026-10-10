@@ -67,9 +67,9 @@ def test_access_endpoint_does_not_disclose_token(monkeypatch: pytest.MonkeyPatch
 def test_settings_mutation_fails_closed_without_token(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
     monkeypatch.delenv("CHAOSCOMMS_API_TOKEN", raising=False)
-    client = TestClient(create_app(radio=FakeRadio()))
+    client = TestClient(create_app(radio=FakeRadio(), web_auth_required=True))
 
     response = client.post("/api/v1/radios", json={"id": "new", "model": "New radio"})
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "control authentication is not configured"
+    assert response.status_code == 401
+    assert response.json()["detail"] == "login required"

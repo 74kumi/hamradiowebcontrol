@@ -201,7 +201,7 @@ class RadioManager:
     def set_mapping(self, radio_id: str, mapping: dict[str, str]) -> None:
         if not any(radio.radio_id == radio_id for radio in self.radios):
             raise KeyError(radio_id)
-        self.mappings[radio_id] = mapping
+        self.mappings[radio_id] = dict(mapping)
 
     def add_simulator(self, radio_id: str, model: str) -> None:
         if any(radio.radio_id == radio_id for radio in self.radios):
@@ -217,6 +217,38 @@ class RadioManager:
         self.mappings.pop(radio_id, None)
         if self.active_radio_id == radio_id:
             self.active_radio_id = self.radios[0].radio_id
+
+    def restore(self, state: dict[str, object]) -> None:
+        simulator_radios = state.get("simulator_radios", [])
+        if isinstance(simulator_radios, list):
+            for entry in simulator_radios:
+                if isinstance(entry, dict):
+                    radio_id = str(entry.get("id", "")).strip()
+                    model = str(entry.get("model", "")).strip()
+                    if radio_id and model and not any(r.radio_id == radio_id for r in self.radios):
+                        self.add_simulator(radio_id, model)
+        active = state.get("active_radio_id")
+        if isinstance(active, str) and any(r.radio_id == active for r in self.radios):
+            self.active_radio_id = active
+        mappings = state.get("mappings")
+        if isinstance(mappings, dict):
+            self.mappings = {
+                str(radio_id): dict(mapping)
+                for radio_id, mapping in mappings.items()
+                if isinstance(mapping, dict)
+                and any(r.radio_id == str(radio_id) for r in self.radios)
+            }
+
+    def persistent_state(self) -> dict[str, object]:
+        return {
+            "active_radio_id": self.active_radio_id,
+            "mappings": self.mappings,
+            "simulator_radios": [
+                {"id": radio.radio_id, "model": getattr(radio, "model", radio.radio_id)}
+                for radio in self.radios
+                if radio.source == "simulator"
+            ],
+        }
 
     def active_radio(self) -> ManagedRadio:
         return next(radio for radio in self.radios if radio.radio_id == self.active_radio_id)

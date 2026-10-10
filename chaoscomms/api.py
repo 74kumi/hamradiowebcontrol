@@ -14,6 +14,7 @@ from chaoscomms.devices import inventory
 from chaoscomms.js8call import JS8CallManager, SimulatedJS8Call
 from chaoscomms.radio import Radio, RadioManager, SimulatedRadio
 from chaoscomms.resources import ResourceManager
+from chaoscomms.state import load_state, save_state
 from chaoscomms.web_auth import verify_password, web_password_configured, web_username
 
 SERVICE_VERSION = "0.1.0"
@@ -36,6 +37,7 @@ def create_app(
     js8call: JS8CallManager | None = None,
     resources: ResourceManager | None = None,
     web_auth_required: bool = False,
+    state_path: Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title="ChaosComms", version=SERVICE_VERSION)
     if radio is None and manager is None:
@@ -47,6 +49,13 @@ def create_app(
     app.state.resources = resources or ResourceManager()
     app.state.audio = AudioCapture()
     app.state.runtime_mode = os.getenv("CHAOSCOMMS_MODE", "live").strip().lower()
+    app.state.state_path = state_path or (
+        Path(os.environ.get("CHAOSCOMMS_STATE_FILE", "/var/lib/chaoscomms/settings.json"))
+        if web_auth_required
+        else None
+    )
+    if app.state.state_path is not None:
+        app.state.manager.restore(load_state(app.state.state_path))
     app.state.web_auth_required = web_auth_required
 
     @app.middleware("http")
@@ -68,6 +77,10 @@ def create_app(
         same_site="strict",
     )
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    def persist_settings() -> None:
+        if app.state.state_path is not None:
+            save_state(app.state.state_path, app.state.manager.persistent_state())
 
     @app.get("/login")
     def login_page() -> FileResponse:
@@ -129,10 +142,7 @@ def create_app(
     def devices() -> dict[str, object]:
         return inventory()
 
-    @app.post(
-        "/api/v1/radios",
-        dependencies=[Depends(require_control_token)],
-    )
+    @app.post("/api/v1/radios")
     def add_radio(payload: dict[str, object]) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="radio changes require simulator mode")
@@ -144,12 +154,10 @@ def create_app(
             app.state.manager.add_simulator(radio_id, model)
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
+        persist_settings()
         return {"radios": app.state.manager.statuses(), "receive_only": True, "ptt": False}
 
-    @app.delete(
-        "/api/v1/radios/{radio_id}",
-        dependencies=[Depends(require_control_token)],
-    )
+    @app.delete("/api/v1/radios/{radio_id}")
     def remove_radio(radio_id: str) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="radio changes require simulator mode")
@@ -160,12 +168,10 @@ def create_app(
         except ValueError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         app.state.radio = app.state.manager.active_radio()
+        persist_settings()
         return {"radios": app.state.manager.statuses(), "receive_only": True, "ptt": False}
 
-    @app.post(
-        "/api/v1/radios/{radio_id}/mapping",
-        dependencies=[Depends(require_control_token)],
-    )
+    @app.post("/api/v1/radios/{radio_id}/mapping")
     def map_radio(radio_id: str, payload: dict[str, str]) -> dict[str, object]:
         if app.state.runtime_mode != "simulator":
             raise HTTPException(status_code=409, detail="mapping changes require simulator mode")
@@ -173,6 +179,7 @@ def create_app(
             app.state.manager.set_mapping(radio_id, payload)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="radio not found") from error
+        persist_settings()
         return {"radio_id": radio_id, "mapping": payload, "receive_only": True, "ptt": False}
 
     @app.get("/api/v1/settings")
@@ -185,16 +192,14 @@ def create_app(
             "audio": app.state.audio.status(),
         }
 
-    @app.post(
-        "/api/v1/radios/{radio_id}/select",
-        dependencies=[Depends(require_control_token)],
-    )
+    @app.post("/api/v1/radios/{radio_id}/select")
     def select_radio(radio_id: str) -> dict[str, object]:
         try:
             app.state.manager.select(radio_id)
         except KeyError as error:
             raise HTTPException(status_code=404, detail="radio not found") from error
         app.state.radio = app.state.manager.active_radio()
+        persist_settings()
         return {"active_radio_id": app.state.manager.active_radio_id}
 
     @app.get("/api/v1/aprs")
@@ -209,10 +214,7 @@ def create_app(
             "transmit_enabled": False,
         }
 
-    @app.post(
-        "/api/v1/bluetooth/scan",
-        dependencies=[Depends(require_control_token)],
-    )
+    @app.post("/api/v1/bluetooth/scan")
     def bluetooth_scan() -> dict[str, object]:
         return {
             "status": "disabled",
@@ -222,10 +224,7 @@ def create_app(
             "ptt": False,
         }
 
-    @app.post(
-        "/api/v1/bluetooth/pair",
-        dependencies=[Depends(require_control_token)],
-    )
+    @app.post("/api/v1/bluetooth/pair")
     def bluetooth_pair() -> dict[str, object]:
         return {
             "status": "disabled",

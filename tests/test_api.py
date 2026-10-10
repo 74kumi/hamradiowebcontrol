@@ -100,6 +100,31 @@ def test_simulator_radio_can_be_added_mapped_and_removed(monkeypatch) -> None:
     assert all(radio["id"] != "sdr1" for radio in removed.json()["radios"])
 
 
+def test_simulator_settings_persist_across_app_restart(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
+    state_path = tmp_path / "settings.json"
+    manager = RadioManager([SimulatedRadio("ft891", "Yaesu FT-891", "transceiver")])
+    client = TestClient(create_app(manager=manager, state_path=state_path))
+
+    added = client.post("/api/v1/radios", json={"id": "sdr1", "model": "Test SDR"})
+    assert added.status_code == 200
+    assert client.post(
+        "/api/v1/radios/sdr1/mapping",
+        json={"device": "plughw:CARD=Device,DEV=0"},
+    ).status_code == 200
+
+    restarted = TestClient(
+        create_app(
+            manager=RadioManager([SimulatedRadio("ft891", "Yaesu FT-891", "transceiver")]),
+            state_path=state_path,
+        )
+    )
+    radios = restarted.get("/api/v1/radios").json()["radios"]
+
+    assert [radio["id"] for radio in radios] == ["ft891", "sdr1"]
+    assert radios[1]["mapping"]["device"] == "plughw:CARD=Device,DEV=0"
+
+
 def test_device_inventory_is_receive_only() -> None:
     client = TestClient(create_app(radio=FakeRadio()))
 
