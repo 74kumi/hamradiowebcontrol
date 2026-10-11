@@ -170,7 +170,59 @@ async function refreshHealth() {
   }
 }
 
+async function refreshDigitalActivity() {
+  try {
+    const [js8Response, aprsResponse] = await Promise.all([
+      fetch("/api/v1/js8call", { cache: "no-store" }),
+      fetch("/api/v1/aprs", { cache: "no-store" }),
+    ]);
+    if (!js8Response.ok || !aprsResponse.ok) throw new Error("activity unavailable");
+    const js8 = await js8Response.json();
+    const aprs = await aprsResponse.json();
+    renderJs8(js8.events || []);
+    renderAprs(aprs.packets || []);
+  } catch (error) {
+    setText("js8-state", "Unavailable");
+    setText("aprs-state", "Unavailable");
+  }
+}
+
+const eventRow = (title, detail) => {
+  const row = document.createElement("div");
+  row.className = "event-row";
+  const heading = document.createElement("strong");
+  heading.textContent = title;
+  const text = document.createElement("span");
+  text.textContent = detail;
+  row.append(heading, text);
+  return row;
+};
+
+const renderJs8 = (events) => {
+  const container = document.getElementById("js8-events");
+  container.replaceChildren(...(events.length
+    ? events.map((event) => eventRow(
+      `${event.source || "Unknown"} → ${event.destination || ""}`,
+      `${event.text} · ${event.snr_db ?? "—"} dB · ${event.transport}`,
+    ))
+    : [eventRow("No received activity", "No JS8Call events")]))
+  setText("js8-state", events.length ? "Activity received" : "Receive only");
+};
+
+const renderAprs = (packets) => {
+  const container = document.getElementById("aprs-packets");
+  container.replaceChildren(...(packets.length
+    ? packets.map((packet) => eventRow(
+      `${packet.source} → ${packet.destination}`,
+      `${packet.information} · ${packet.path.join(", ")} · ${packet.transport}`,
+    ))
+    : [eventRow("No received packets", "No APRS activity")]))
+  setText("aprs-state", packets.length ? "Packets received" : "Receive only");
+};
+
 refreshHealth();
 refreshFleet();
+refreshDigitalActivity();
 setInterval(refreshHealth, 5000);
 setInterval(refreshFleet, 5000);
+setInterval(refreshDigitalActivity, 5000);

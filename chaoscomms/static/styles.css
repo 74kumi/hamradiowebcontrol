@@ -34,6 +34,11 @@ h2 { font-size: 1.45rem; }
 .fleet-name { font-weight: 800; }
 .fleet-meta { margin-top: 4px; color: #8290aa; font-size: .78rem; }
 .fleet-state { color: #a7f3d0; font-size: .78rem; font-weight: 800; }
+.data-card { min-width: 0; padding: 22px; }
+.event-list { display: grid; gap: 8px; margin-top: 16px; }
+.event-row { display: grid; gap: 4px; min-width: 0; padding: 12px; border: 1px solid #293752; border-radius: 12px; background: #121c30; }
+.event-row strong, .event-row span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-row span { color: #94a3bb; font-size: .82rem; }
 .safety-mark { display: grid; place-items: center; width: 38px; height: 38px; margin-right: 12px; border-radius: 50%; color: #a7f3d0; background: #123b32; font-weight: 900; }
 .safety-heading { justify-content: flex-start; }
 .disabled-control { margin-top: 20px; padding: 15px; border: 1px solid #39455d; border-radius: 14px; color: #77839a; background: #151c2b; text-align: center; font-weight: 800; }

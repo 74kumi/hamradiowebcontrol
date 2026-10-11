@@ -64,6 +64,19 @@ def test_settings_page_and_endpoint_expose_receive_only_mapping() -> None:
     assert payload.json()["audio"]["source"] == "alsa"
 
 
+def test_dashboard_exposes_receive_only_js8call_and_aprs_panels() -> None:
+    client = TestClient(create_app(radio=FakeRadio()))
+
+    page = client.get("/")
+    js8 = client.get("/api/v1/js8call")
+    aprs = client.get("/api/v1/aprs")
+
+    assert "JS8Call" in page.text
+    assert "APRS" in page.text
+    assert js8.json()["events"][0]["transmit_enabled"] is False
+    assert aprs.json()["packets"][0]["transmit_enabled"] is False
+
+
 def test_bluetooth_actions_are_disabled_in_simulator_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
     monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")
