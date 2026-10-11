@@ -124,6 +124,10 @@ def create_app(
     def settings_page() -> FileResponse:
         return FileResponse(STATIC_DIR / "settings.html")
 
+    @app.get("/js8call")
+    def js8call_page() -> FileResponse:
+        return FileResponse(STATIC_DIR / "js8call.html")
+
     @app.get("/api/v1/about")
     def about() -> dict[str, str]:
         return {"service": "ChaosComms", "version": SERVICE_VERSION}

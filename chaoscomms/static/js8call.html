@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/static/styles.css">
+  <title>ChaosComms · JS8Call</title>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div><p class="eyebrow">DIGITAL MODE CONSOLE</p><h1>JS8Call</h1></div>
+      <nav class="settings-actions"><a class="back-link" href="/">Dashboard</a><a class="back-link" href="/settings">Settings</a></nav>
+    </header>
+    <section class="card hero">
+      <div><p class="eyebrow">BACKEND TRANSPORT</p><h2 id="js8-transport">Checking…</h2><p id="js8-status" class="muted">Loading receive state</p></div>
+      <div class="radio-icon" aria-hidden="true">◌</div>
+    </section>
+    <section class="grid">
+      <article class="card metric"><span class="label">Received events</span><strong id="event-count">—</strong><span class="muted">current activity window</span></article>
+      <article class="card metric"><span class="label">Transmit</span><strong>Disabled</strong><span class="muted">receive-only policy</span></article>
+    </section>
+    <section class="card settings-card">
+      <div class="section-heading"><div><p class="eyebrow">ACTIVITY</p><h2>Received JS8Call events</h2></div><button id="refresh" class="secondary-button" type="button">Refresh</button></div>
+      <div class="settings-control"><label for="event-filter">Filter activity</label><input id="event-filter" placeholder="callsign, message, destination…" autocomplete="off"></div>
+      <div id="events" class="event-list" aria-live="polite">Loading…</div>
+    </section>
+    <section class="card settings-card">
+      <div class="section-heading"><div><p class="eyebrow">STATIONS</p><h2>Observed stations</h2></div><span class="muted">Derived from received events</span></div>
+      <div id="stations" class="settings-table">Loading…</div>
+    </section>
+    <section class="card safety">
+      <div class="safety-heading"><span class="safety-mark">✓</span><div><h2>Receive-only web console</h2><p class="muted">No message composer, send action, frequency write, or PTT control is exposed.</p></div></div>
+    </section>
+  </main>
+  <script>
+    let events = [];
+    const text = (id, value) => { document.getElementById(id).textContent = value ?? "—"; };
+    const row = (title, detail) => {
+      const element = document.createElement("div");
+      element.className = "event-row";
+      const heading = document.createElement("strong");
+      heading.textContent = title;
+      const body = document.createElement("span");
+      body.textContent = detail;
+      element.append(heading, body);
+      return element;
+    };
+    const render = () => {
+      const filter = document.getElementById("event-filter").value.trim().toLowerCase();
+      const visible = events.filter((event) => JSON.stringify(event).toLowerCase().includes(filter));
+      text("event-count", visible.length);
+      const list = document.getElementById("events");
+      list.replaceChildren(...(visible.length ? visible.map((event) => row(
+        `${event.source || "Unknown"} → ${event.destination || ""}`,
+        `${event.event_type} · ${event.text} · ${event.snr_db ?? "—"} dB · ${event.dial_frequency_hz ?? "—"} Hz · ${event.transport}`,
+      )) : [row("No matching events", "No received JS8Call activity")]))
+      const stations = [...new Set(events.flatMap((event) => [event.source, event.destination]).filter(Boolean))].sort();
+      document.getElementById("stations").replaceChildren(...(stations.length
+        ? stations.map((station) => row(station, "Observed in received activity"))
+        : [row("No stations observed", "No callsigns in the current activity window")]));
+    };
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/v1/js8call", { cache: "no-store" });
+        if (!response.ok) throw new Error("unavailable");
+        const payload = await response.json();
+        events = payload.events || [];
+        text("js8-transport", events[0]?.transport || "No transport");
+        text("js8-status", events.length ? "Receiving simulated activity" : "Connected, no activity");
+        render();
+      } catch (error) {
+        text("js8-transport", "Unavailable");
+        text("js8-status", "JS8Call activity endpoint unavailable");
+        events = [];
+        render();
+      }
+    };
+    document.getElementById("event-filter").addEventListener("input", render);
+    document.getElementById("refresh").addEventListener("click", refresh);
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
+</body>
+</html>

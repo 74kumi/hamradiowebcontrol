@@ -77,6 +77,15 @@ def test_dashboard_exposes_receive_only_js8call_and_aprs_panels() -> None:
     assert aprs.json()["packets"][0]["transmit_enabled"] is False
 
 
+def test_js8call_console_is_protected_and_served() -> None:
+    client = TestClient(create_app(radio=FakeRadio(), web_auth_required=True))
+
+    response = client.get("/js8call", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "/login"
+
+
 def test_bluetooth_actions_are_disabled_in_simulator_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CHAOSCOMMS_MODE", "simulator")
     monkeypatch.setenv("CHAOSCOMMS_API_TOKEN", "test-token")

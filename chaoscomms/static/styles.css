@@ -34,6 +34,8 @@ h2 { font-size: 1.45rem; }
 .fleet-name { font-weight: 800; }
 .fleet-meta { margin-top: 4px; color: #8290aa; font-size: .78rem; }
 .fleet-state { color: #a7f3d0; font-size: .78rem; font-weight: 800; }
+.card-link { color: inherit; text-decoration: none; }
+.card-link:hover { color: #7dd3fc; }
 .data-card { min-width: 0; padding: 22px; }
 .event-list { display: grid; gap: 8px; margin-top: 16px; }
 .event-row { display: grid; gap: 4px; min-width: 0; padding: 12px; border: 1px solid #293752; border-radius: 12px; background: #121c30; }
